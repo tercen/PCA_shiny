@@ -1,7 +1,30 @@
 {
-  "name": "Template Shiny Operator",
-  "description": "Template to create a Shiny operator in Tercen.",
-  "tags": ["template"],
+  "name": "PCA Shiny",
+  "description": "PCA Shiny operator",
+  "tags": ["pamgene", "pca"],
   "authors": ["tercen"],
-  "urls": ["https://github.com/tercen/template_shiny_operator"]
+  "urls": ["https://github.com/tercen/PCA_shiny_operator"],
+  "properties": [
+  {
+    "kind": "EnumeratedProperty",
+    "name": "Scale Spots",
+    "defaultValue": "No",
+    "description": "If the spots should be scaled",
+	  "values": [
+      "No",
+      "Yes"
+      ]
+  },
+  {
+    "kind": "DoubleProperty",
+    "name": "Number of Components",
+    "defaultValue": 5,
+    "description": "number of components"
+  },
+  {
+    "kind": "DoubleProperty",
+    "name": "Subtract component",
+    "defaultValue": 0,
+    "description": "subtract component"
+  } ]
 }

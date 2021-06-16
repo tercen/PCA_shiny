@@ -25,4 +25,4 @@ The input is a cross-tab view with a single value per cell. Each column will be 
 
 ##### See Also
 
-[ttest_app](https://github.com/tercen/PCA_shiny_operator)
+[PCA_shiny_operator](https://github.com/tercen/PCA_shiny_operator)
