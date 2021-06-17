@@ -30,6 +30,8 @@ shinyServer(function(input, output, session) {
     no_comp  <- min(mx_comp, data$no_components)
     px       <- paste("PC", 1:no_comp, sep = "")
     py       <- px[c(2, 1, 3:no_comp)]
+    colors   <- c(colnames(data$color_annotation), colnames(data$sample_annotation))
+    texts    <- c(colnames(data$sample_annotation), colnames(data$color_annotation))
     
     dashboardPage(
       # Application title
@@ -43,8 +45,8 @@ shinyServer(function(input, output, session) {
         tags$script(JS("document.getElementsByClassName('sidebar-toggle')[0].style.visibility = 'hidden';")),
         tags$head(tags$style(HTML('.content-wrapper, .right-side { background-color: white; }'))),
         selectizeInput("labsOrSpheres", getSelectLabel("What to show"), choices = c("Text labels", "Spheres")),
-        selectizeInput("colorAnnotation", getSelectLabel("Select factor for coloring"), choices = colnames(data$color_annotation)),
-        selectizeInput("textAnnotation", getSelectLabel("Select factor for text labels"), choices = colnames(data$sample_annotation)),
+        selectizeInput("colorAnnotation", getSelectLabel("Select factor for coloring"), choices = colors),
+        selectizeInput("textAnnotation", getSelectLabel("Select factor for text labels"), choices = texts),
         tags$hr(),
         plotOutput("legend", width = "200px"),
         width = "20%"
@@ -72,22 +74,35 @@ shinyServer(function(input, output, session) {
     getValues(session)
   })
   
-  cCol = reactive({
-    data <- dataInput()
-    cHdr = as.character(input$colorAnnotation)
-    cGrp = as.factor(data$color_annotation[[cHdr]])
-    return(1+as.numeric(cGrp))
+  get_color_values <- reactive({
+    data  <- dataInput()
+    color <- as.character(input$colorAnnotation)
+    if (color %in% colnames(data$color_annotation)) {
+      group <- as.factor(data$color_annotation[[color]]) 
+    } else {
+      group <- as.factor(data$sample_annotation[[color]])
+    }
+    group
+  })
+  
+  get_colors <- reactive({
+    1 + as.numeric(get_color_values())
   })
   
   sLab = reactive({
     data <- dataInput()
-    tHdr <- as.character(input$textAnnotation)
-    as.character(data$sample_annotation[[tHdr]])
+    text <- as.character(input$textAnnotation)
+    if (text %in% colnames(data$color_annotation)) {
+      result <- as.character(data$color_annotation[[text]]) 
+    } else {
+      result <- as.character(data$sample_annotation[[text]])
+    }
+    result
   })
   
   output$mat <- renderPlot({
     data <- dataInput()
-    clrs <- cCol()
+    clrs <- get_colors()
     pairs(data$pca$x[,1:input$ncomp], col = clrs, bg = clrs, pch = 21)
   }, height = 650, width = 850)
   
@@ -98,7 +113,7 @@ shinyServer(function(input, output, session) {
                    "Text labels" = "p",
                    "Spheres" = "s"
     )
-    clrs  <- cCol()
+    clrs  <- get_colors()
     tGrp  <- sLab()
     open3d()
     plot3d(x = data$pca$x[,1],y = data$pca$x[,2], z = data$pca$x[,3],  col = clrs, box = FALSE, type = pSym, size = 2, xlab = "PC1", ylab = "PC2", zlab = "PC3")
@@ -118,8 +133,8 @@ shinyServer(function(input, output, session) {
   output$legend = renderPlot({
     data         <- dataInput()
     color        <- as.character(input$colorAnnotation)
-    color_values <- as.factor(data$color_annotation[[color]])
-    colors       <- unique(cCol())
+    color_values <- get_color_values()
+    colors       <- unique(get_colors())
     
     plot(1,1, xaxt = "n", yaxt ="n", xlab = "", ylab = "", col = "white", bty = "n")
     legend(x = "top", legend = unique(color_values), fill = colors, cex = 1, bty = "n")
@@ -136,7 +151,7 @@ shinyServer(function(input, output, session) {
     qntVars <- 1-0.01*input$showvars
     zmVars  <- 0.01 * input$zl;
     oLabs   <- sLab()
-    clrs    <- cCol()
+    clrs    <- get_colors()
     idx     <- c(xIdx, yIdx)
     obs     <- data$pca$x[,idx]
     vars    <- data$pca$rotation[,idx]
@@ -182,7 +197,10 @@ getValues <- function(session){
   }
   
   sample_annotation <- ctx$cselect(array_labels)
-  color_annotation  <- ctx$select(ctx$colors)
+  color_annotation  <- NULL
+  if (length(ctx$colors) > 0) {
+    color_annotation  <- ctx$select(ctx$colors)  
+  }
   
   X <- t(acast(data, .ri~.ci, value.var = ".y"))
   if (any(is.na(X))) {
@@ -206,7 +224,7 @@ getValues <- function(session){
   
   list(pca_data          = pca_data, 
        sample_annotation = sample_annotation, 
-       color_annotation  = sample_annotation, 
+       color_annotation  = color_annotation, 
        var_names         = varNames,
        no_components     = no_comp)
 }
