@@ -3,6 +3,9 @@ library(tercen)
 library(dplyr)
 library(rgl)
 library(reshape2)
+library(shinyjs)
+library(shinydashboard)
+library(htmlwidgets)
 
 ############################################
 #### This part should not be included in ui.R and server.R scripts
@@ -29,25 +32,27 @@ server <- shinyServer(function(input, output, session) {
     px       <- paste("PC", 1:no_comp, sep = "")
     py       <- px[c(2, 1, 3:no_comp)]
     
-    pageWithSidebar(
+    dashboardPage(
       # Application title
-      headerPanel("Shiny PCA scores results"),
+      dashboardHeader(title = "Shiny PCA scores results"),
       
       # Sidebar with controls
-      sidebarPanel(
-        selectInput("labsOrSpheres", "What to show", 
-                    choices = c("Text labels", "Spheres")),
-        selectInput("colorAnnotation", "Select factor for coloring", choices = colnames(data$color_annotation)),
-        selectInput("textAnnotation", "Select factor for text labels", choices = colnames(data$sample_annotation)),
+      dashboardSidebar(
+        shinyjs::useShinyjs(),
+        tags$script(HTML('setInterval(function(){ $("#hiddenButton").click(); }, 1000*30);')),
+        tags$footer(shinyjs::hidden(actionButton(inputId = "hiddenButton", label = "hidden"))),
+        tags$script(JS("document.getElementsByClassName('sidebar-toggle')[0].style.visibility = 'hidden';")),
+        tags$head(tags$style(HTML('.content-wrapper, .right-side { background-color: white; }'))),
+        selectizeInput("labsOrSpheres", getSelectLabel("What to show"), choices = c("Text labels", "Spheres")),
+        selectizeInput("colorAnnotation", getSelectLabel("Select factor for coloring"), choices = colnames(data$color_annotation)),
+        selectizeInput("textAnnotation", getSelectLabel("Select factor for text labels"), choices = colnames(data$sample_annotation)),
         tags$hr(),
-        plotOutput("legend"),
-        tags$hr(),
-        h5("Shiny PCA", a("help on PamCloud", href="http:///pamcloud.pamgene.com//wiki//Wiki.jsp?page=Shiny%20PCA") ),
-        actionButton("stop", "Done")
+        plotOutput("legend", width = "200px"),
+        width = "20%"
       ),
       
       # mainpanel
-      mainPanel( 
+      dashboardBody( 
         tabsetPanel(tabPanel("Scores 3D", rglwidgetOutput("scores3D", height = 700, width = 700)),
                     tabPanel("Scores Plot matrix",tags$hr(),
                              sliderInput("ncomp", "Number of components to show in the matrix.", min = 2, max = mx_comp, step = 1, value = no_comp),
@@ -68,11 +73,6 @@ server <- shinyServer(function(input, output, session) {
     getValues(session)
   })
   
-  session$onSessionEnded(function() {
-    stopApp();
-    print("Shiny session ended, stopped listening!")
-  })
-  
   cCol = reactive({
     data <- dataInput()
     cHdr = as.character(input$colorAnnotation)
@@ -88,25 +88,25 @@ server <- shinyServer(function(input, output, session) {
   
   output$mat <- renderPlot({
     data <- dataInput()
-    clrs = cCol()
+    clrs <- cCol()
     pairs(data$pca$x[,1:input$ncomp], col = clrs, bg = clrs, pch = 21)
   }, height = 650, width = 850)
   
   
   output$scores3D <- renderRglwidget({
     data <- dataInput()
-    pSym = switch(input$labsOrSpheres, 
-                  "Text labels" = "p",
-                  "Spheres" = "s"
+    pSym <- switch(input$labsOrSpheres, 
+                   "Text labels" = "p",
+                   "Spheres" = "s"
     )
-    clrs  = cCol()
-    tGrp  = sLab()
+    clrs  <- cCol()
+    tGrp  <- sLab()
     open3d()
     plot3d(x = data$pca$x[,1],y = data$pca$x[,2], z = data$pca$x[,3],  col = clrs, box = FALSE, type = pSym, size = 2, xlab = "PC1", ylab = "PC2", zlab = "PC3")
     if(pSym == "p"){
       text3d(x = data$pca$x[,1], y = data$pca$x[,2], z= data$pca$x[,3], texts = tGrp, adj = 0, col = clrs, box = FALSE)
     }
-    scene1 = scene3d()
+    scene1 <- scene3d()
     rgl.close()
     rglwidget(scene1)
   })
@@ -117,13 +117,13 @@ server <- shinyServer(function(input, output, session) {
   })
   
   output$legend = renderPlot({
-    data <- dataInput()
+    data         <- dataInput()
+    color        <- as.character(input$colorAnnotation)
+    color_values <- as.factor(data$color_annotation[[color]])
+    colors       <- unique(cCol())
     
     plot(1,1, xaxt = "n", yaxt ="n", xlab = "", ylab = "", col = "white", bty = "n")
-    cHdr <- as.character(input$colorAnnotation)
-    cGrp <- as.factor(data$color_annotation[[cHdr]])
-    clrs <- unique(cCol())
-    legend(x = "top", legend = unique(cGrp), fill = clrs, cex = 1, bty = "n") 
+    legend(x = "top", legend = unique(color_values), fill = colors, cex = 1, bty = "n")
   })
   
   output$biplot = renderPlot({
@@ -132,44 +132,36 @@ server <- shinyServer(function(input, output, session) {
     no_comp <- min(mx_comp, data$no_components)
     px      <- paste("PC", 1:no_comp, sep = "")
     py      <- px[c(2, 1, 3:no_comp)]
+    xIdx    <- c(1:no_comp)[input$px == px]
+    yIdx    <- c(1:no_comp)[input$py == px]
+    qntVars <- 1-0.01*input$showvars
+    zmVars  <- 0.01 * input$zl;
+    oLabs   <- sLab()
+    clrs    <- cCol()
+    idx     <- c(xIdx, yIdx)
+    obs     <- data$pca$x[,idx]
+    vars    <- data$pca$rotation[,idx]
+    sc      <- data$pca$sdev[idx]^2
+    lvars   <- apply(vars^2, 1, sum)
+    bVar    <- lvars > quantile(lvars, qntVars)
+    vars    <- vars[bVar,]
+    xp      <- c(sc[1]*vars[,1], obs[,1])
+    yp      <- c(sc[2]*vars[,2], obs[,2])
+    zm      <- 1.1
+    scxVars <- zmVars*sc[1]*vars[,1]
+    scyVars <- zmVars*sc[2]*vars[,2]
     
-    xIdx = c(1:no_comp)[input$px == px]
-    yIdx = c(1:no_comp)[input$py == px]
-    qntVars = 1-0.01*input$showvars
-    zmVars = 0.01 * input$zl;
-    oLabs = sLab()
-    clrs = cCol()
-    idx = c(xIdx, yIdx)
-    obs = data$pca$x[,idx]
-    vars = data$pca$rotation[,idx]
-    sc = data$pca$sdev[idx]^2
-    lvars = apply(vars^2, 1, sum)
-    bVar = lvars > quantile(lvars, qntVars)
-    vars = vars[bVar,]
-    xp = c(sc[1]*vars[,1], obs[,1])
-    yp = c(sc[2]*vars[,2], obs[,2])
-    zm = 1.1
-    scxVars = zmVars*sc[1]*vars[,1]
-    scyVars = zmVars*sc[2]*vars[,2]
-    plot(x = scxVars, y = scyVars, pch = ".", xlim = zm * c(min(xp), max(xp)), ylim = zm * c(min(yp), max(yp)), xlab = input$px, ylab = input$py )
+    plot(x = scxVars, y = scyVars, pch = ".", xlim = zm * c(min(xp), max(xp)), ylim = zm * c(min(yp), max(yp)), xlab = input$px, ylab = input$py)
     arrows(x0 = 0, y0 = 0, x = scxVars, y = scyVars, col = "grey")
     text(x = obs[,1], y = obs[,2], oLabs, col = clrs, cex = 2)
     text(x = scxVars, y = scyVars, rownames(vars), col = "black")
   })
   
-  done <- reactive({return(input$stop>0)})
-  
-  output$done = renderText({
-    if(done()){
-      stopApp()
-      print("Shiny session ended, stopped listening!")
-      return("Done")
-    } else {
-      return("")
-    }
-  })
-  
 })
+
+getSelectLabel <- function(label) {
+  shiny::HTML(paste0("<p><span style='color: black'>", label, "</span></p>"))
+}
 
 getValues <- function(session){
   ctx          <- getCtx(session)
@@ -192,7 +184,8 @@ getValues <- function(session){
   
   sample_annotation <- ctx$cselect(array_labels)
   color_annotation  <- ctx$select(ctx$colors)
-  X <- t(acast(data, .ri~.ci, value = "val"))
+  
+  X <- t(acast(data, .ri~.ci, value.var = ".y"))
   if (any(is.na(X))) {
     stop("Missing values are not allowed")
   }
@@ -206,7 +199,7 @@ getValues <- function(session){
   pca_data    <- prcomp(X, scale. = b_scale)
   sVal        <- NULL
   
-  if (rm_comp > 0){
+  if (rm_comp > 0) {
     N         <- scale(X, scale = b_scale) - (pca_data$x[, rm_comp]) %*% (t(pca_data$rotation[, rm_comp]))
     pca_data  <- prcomp(N, scale. = b_scale)
     sVal      <- melt(N)

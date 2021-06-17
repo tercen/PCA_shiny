@@ -1,4 +1,4 @@
-#PCA_shiny_operator
+# PCA_shiny_operator
 
 ##### Description
 
@@ -13,7 +13,8 @@ Input projection|.
 Input parameters|.
 ---|---
 `Scale Spots`          | autoscale spots
-`Number of Components` | Maximum number of components returned to Bionavigator.
+`Number of Components` | Maximum number of components returned to Tercen
+`Subtract component`   | Subtract component
 
 Output|.
 ---|---
