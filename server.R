@@ -30,8 +30,8 @@ shinyServer(function(input, output, session) {
     no_comp  <- min(mx_comp, data$no_components)
     px       <- paste("PC", 1:no_comp, sep = "")
     py       <- px[c(2, 1, 3:no_comp)]
-    colors   <- c(colnames(data$color_annotation), colnames(data$sample_annotation))
-    texts    <- c(colnames(data$sample_annotation), colnames(data$color_annotation))
+    colors   <- unique(c(colnames(data$color_annotation), colnames(data$sample_annotation)))
+    texts    <- unique(c(colnames(data$sample_annotation), colnames(data$color_annotation)))
     
     dashboardPage(
       # Application title
@@ -145,11 +145,10 @@ shinyServer(function(input, output, session) {
     mx_comp <- dim(data$pca$rotation)[2]
     no_comp <- min(mx_comp, data$no_components)
     px      <- paste("PC", 1:no_comp, sep = "")
-    py      <- px[c(2, 1, 3:no_comp)]
     xIdx    <- c(1:no_comp)[input$px == px]
     yIdx    <- c(1:no_comp)[input$py == px]
-    qntVars <- 1-0.01*input$showvars
-    zmVars  <- 0.01 * input$zl;
+    qntVars <- 1 - 0.01 * input$showvars
+    zmVars  <- 0.01 * input$zl
     oLabs   <- sLab()
     clrs    <- get_colors()
     idx     <- c(xIdx, yIdx)
@@ -185,13 +184,13 @@ getValues <- function(session){
   spot_labels  <- names(ctx$rnames)
   
   if (length(array_labels) > 0){
-    obs <- droplevels(interaction(ctx$cselect(array_labels)))
+    obs_names <- droplevels(interaction(ctx$cselect(array_labels)))
   } else {
     stop("PCA requires multiple columns (observations) in he BN cross-tab view")
   }
   
   if (length(spot_labels) > 0){
-    vars <- droplevels(interaction(ctx$rselect(spot_labels)))
+    var_names <- droplevels(interaction(ctx$rselect(spot_labels)))
   } else {
     stop("PCA requires multiple rows (variables) in the BN cross-tab view")
   }
@@ -206,10 +205,9 @@ getValues <- function(session){
   if (any(is.na(X))) {
     stop("Missing values are not allowed")
   }
-  obsNames    <- obs[data$.ri == 1]
-  varNames    <- vars[data$.ci == 1]
-  rownames(X) <- obsNames
-  colnames(X) <- varNames
+  
+  rownames(X) <- obs_names
+  colnames(X) <- var_names
   b_scale     <- ifelse(is.null(ctx$op.value('Scale Spots')), 'No', ctx$op.value('Scale Spots')) == "Yes"
   no_comp     <- ifelse(is.null(ctx$op.value('Number of Components')), 5, as.double(ctx$op.value('Number of Components')))
   rm_comp     <- ifelse(is.null(ctx$op.value('Subtract component')), 0, as.double(ctx$op.value('Subtract component')))
@@ -225,6 +223,6 @@ getValues <- function(session){
   list(pca_data          = pca_data, 
        sample_annotation = sample_annotation, 
        color_annotation  = color_annotation, 
-       var_names         = varNames,
+       var_names         = var_names,
        no_components     = no_comp)
 }
