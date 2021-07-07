@@ -4,6 +4,7 @@
   "tags": ["pamgene", "pca"],
   "authors": ["tercen"],
   "urls": ["https://github.com/tercen/PCA_shiny_operator"],
+  "isViewOnly": false,
   "properties": [
   {
     "kind": "EnumeratedProperty",
