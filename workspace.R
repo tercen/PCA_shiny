@@ -50,6 +50,7 @@ server <- shinyServer(function(input, output, session) {
         selectizeInput("textAnnotation", getSelectLabel("Select factor for text labels"), choices = texts),
         tags$hr(),
         plotOutput("legend", width = "200px"),
+        HTML(paste("<center><h5 style='color: black'>Click below to send data back to Tercen</h5>", actionButton("button", "Transform data"),"</center>")),
         width = "20%"
       ),
       
@@ -69,6 +70,10 @@ server <- shinyServer(function(input, output, session) {
         ),
         textOutput("done")
       ))
+  })
+  
+  returnData <- reactive({
+    getReturnData(session, dataInput())
   })
   
   dataInput <- reactive({
@@ -171,6 +176,15 @@ server <- shinyServer(function(input, output, session) {
     text(x = scxVars, y = scyVars, rownames(vars), col = "black")
   })
   
+  observeEvent(input$button, {
+    shinyjs::disable("button")
+    
+    ctx <- getCtx(session)
+    returnData() %>% 
+      ctx$addNamespace() %>% 
+      ctx$save()
+  })
+  
 })
 
 getSelectLabel <- function(label) {
@@ -221,11 +235,43 @@ getValues <- function(session){
     sVal      <- melt(N)
   }
   
-  list(pca_data          = pca_data, 
+  list(data              = data,
+       matrix_data       = X,
+       pca_data          = pca_data, 
        sample_annotation = sample_annotation, 
        color_annotation  = color_annotation, 
        var_names         = var_names,
-       no_components     = no_comp)
+       no_components     = no_comp,
+       s_value           = sVal)
+}
+
+getReturnData <- function(session, input_data) {
+  data     <- input_data$data
+  X        <- input_data$matrix_data
+  pca_data <- input_data$pca_data
+  no_comp  <- input_data$no_components
+  sVal     <- input_data$s_value
+  
+  # reformat and return the required number of loadings and scores
+  flat_rotation <- matrix(nrow = dim(data)[1], ncol = no_comp)
+  flat_score    <- matrix(nrow = dim(data)[1], ncol = no_comp)
+  for (j in 1:no_comp) {
+    for (i in 1:dim(X)[2]) {
+      flat_rotation[data$.ri == (i-1), j] = pca_data$rotation[i, j]
+    }
+    for (i in 1:dim(X)[1]){
+      flat_score[data$.ci == (i-1), j] = pca_data$x[i, j]
+    }
+  }
+  result           <- data.frame(flat_rotation)  
+  colnames(result) <- paste('PC', 1:no_comp, sep = '');
+  result           <- data.frame(result, flat_score)
+  result           <- data.frame(result, .ri = data$.ri, .ci = data$.ci)     
+  result           <- result[order(result$.ri, result$.ci), ]
+  if (!is.null(sVal)) {
+    result <- data.frame(result, sVal = sVal$value)
+  }
+  result
 }
 
 runApp(shinyApp(ui, server))  
