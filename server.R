@@ -22,7 +22,7 @@ getCtx <- function(session) {
 ####
 ############################################
 
-shinyServer(function(input, output, session) {
+server <- shinyServer(function(input, output, session) {
   
   output$body <- renderUI({
     data     <- dataInput()
@@ -82,10 +82,10 @@ shinyServer(function(input, output, session) {
   get_color_values <- reactive({
     data  <- dataInput()
     color <- as.character(input$colorAnnotation)
-    if (color %in% colnames(data$color_annotation)) {
-      group <- as.factor(data$color_annotation[[color]]) 
-    } else {
+    if (color %in% colnames(data$sample_annotation)) {
       group <- as.factor(data$sample_annotation[[color]])
+    } else {
+      group <- as.factor(acast(cbind(data$data, data$color_annotation), .ri~.ci, value.var = color)[1,])
     }
     group
   })
@@ -94,13 +94,13 @@ shinyServer(function(input, output, session) {
     1 + as.numeric(get_color_values())
   })
   
-  sLab = reactive({
+  sLab <- reactive({
     data <- dataInput()
     text <- as.character(input$textAnnotation)
-    if (text %in% colnames(data$color_annotation)) {
-      result <- as.character(data$color_annotation[[text]]) 
-    } else {
+    if (text %in% colnames(data$sample_annotation)) {
       result <- as.character(data$sample_annotation[[text]])
+    } else {
+      result <- as.character(acast(cbind(data$data, data$color_annotation), .ri~.ci, value.var = text)[1,])
     }
     result
   })
@@ -118,12 +118,12 @@ shinyServer(function(input, output, session) {
                    "Text labels" = "p",
                    "Spheres" = "s"
     )
-    clrs  <- get_colors()
-    tGrp  <- sLab()
+    clrs   <- get_colors()
+    labels <- sLab()
     open3d()
     plot3d(x = data$pca$x[,1],y = data$pca$x[,2], z = data$pca$x[,3],  col = clrs, box = FALSE, type = pSym, size = 2, xlab = "PC1", ylab = "PC2", zlab = "PC3")
-    if(pSym == "p"){
-      text3d(x = data$pca$x[,1], y = data$pca$x[,2], z= data$pca$x[,3], texts = tGrp, adj = 0, col = clrs, box = FALSE)
+    if (pSym == "p") {
+      text3d(x = data$pca$x[,1], y = data$pca$x[,2], z= data$pca$x[,3], texts = labels, adj = 0, col = clrs, box = FALSE)
     }
     scene1 <- scene3d()
     rgl.close()
@@ -197,7 +197,7 @@ getValues <- function(session){
   array_labels <- names(ctx$cnames)
   spot_labels  <- names(ctx$rnames)
   
-  if (length(array_labels) > 0){
+  if (length(array_labels) > 0) {
     obs_names <- droplevels(interaction(ctx$cselect(array_labels)))
   } else {
     stop("PCA requires multiple columns (observations) in he BN cross-tab view")
@@ -212,7 +212,7 @@ getValues <- function(session){
   sample_annotation <- ctx$cselect(array_labels)
   color_annotation  <- NULL
   if (length(ctx$colors) > 0) {
-    color_annotation  <- ctx$select(ctx$colors)  
+    color_annotation  <- ctx$select(ctx$colors)
   }
   
   X <- t(acast(data, .ri~.ci, value.var = ".y"))
