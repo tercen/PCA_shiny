@@ -1,31 +1,39 @@
 {
   "name": "PCA Shiny",
   "description": "PCA Shiny operator",
-  "tags": ["pamgene", "pca"],
-  "authors": ["tercen"],
-  "urls": ["https://github.com/tercen/PCA_shiny_operator"],
+  "tags": [
+    "dimensionality reduction",
+    "multivariate statistics"
+  ],
+  "authors": [
+    "tercen"
+  ],
+  "urls": [
+    "https://github.com/tercen/PCA_shiny_operator"
+  ],
   "isViewOnly": false,
   "properties": [
-  {
-    "kind": "EnumeratedProperty",
-    "name": "Scale Spots",
-    "defaultValue": "No",
-    "description": "If the spots should be scaled",
-	  "values": [
-      "No",
-      "Yes"
+    {
+      "kind": "EnumeratedProperty",
+      "name": "Scale Spots",
+      "defaultValue": "No",
+      "description": "If the spots should be scaled",
+      "values": [
+        "No",
+        "Yes"
       ]
-  },
-  {
-    "kind": "DoubleProperty",
-    "name": "Number of Components",
-    "defaultValue": 5,
-    "description": "number of components"
-  },
-  {
-    "kind": "DoubleProperty",
-    "name": "Subtract component",
-    "defaultValue": 0,
-    "description": "subtract component"
-  } ]
+    },
+    {
+      "kind": "DoubleProperty",
+      "name": "Number of Components",
+      "defaultValue": 5,
+      "description": "number of components"
+    },
+    {
+      "kind": "DoubleProperty",
+      "name": "Subtract component",
+      "defaultValue": 0,
+      "description": "subtract component"
+    }
+  ]
 }
