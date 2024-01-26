@@ -1,6 +1,6 @@
 {
   "name": "PCA Shiny",
-  "description": "PCA Shiny operator",
+  "description": "Loads a web application to run and display a Principal Component Analysis.",
   "tags": [
     "dimensionality reduction",
     "multivariate statistics"
